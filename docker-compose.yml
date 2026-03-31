@@ -1,0 +1,129 @@
+# Docker Compose for production-ready stack
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: mte-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - mte-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: mte-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mte-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mte-api
+    restart: unless-stopped
+    environment:
+      - DB_URL=mysql+aiomysql://app_user:app_password@db:3306/testdb
+      - DB_ADMIN_URL=mysql+aiomysql://root:password@db:3306/testdb
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "3030:3030"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mte-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Alembic Migration Runner (one-off on startup)
+  alembic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mte-alembic
+    environment:
+      - DB_ADMIN_URL=mysql+aiomysql://root:password@db:3306/testdb
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - REDIS_URL=redis://redis:6379/0
+    command: >
+      sh -c "
+      alembic upgrade head &&
+      echo 'Migrations completed' &&
+      sleep infinity
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mte-network
+    profiles:
+      - migrations  # Run with: docker-compose --profile migrations up
+
+  # Worker (future: Celery / Background tasks)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mte-worker
+    restart: unless-stopped
+    environment:
+      - DB_URL=mysql+aiomysql://app_user:app_password@db:3306/testdb
+      - DB_ADMIN_URL=mysql+aiomysql://root:password@db:3306/testdb
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - REDIS_URL=redis://redis:6379/0
+    command: python -c "print('Worker ready for tasks')"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - mte-network
+    profiles:
+      - worker  # Run with: docker-compose --profile worker up
+
+networks:
+  mte-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
