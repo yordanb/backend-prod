@@ -5,11 +5,12 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-# Install system dependencies (for MySQL client, build tools)
+# Install system dependencies (for MySQL client, build tools, curl for healthcheck)
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
