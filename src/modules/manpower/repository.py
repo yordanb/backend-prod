@@ -63,7 +63,7 @@ class EmployeeRepository:
         return result.rowcount > 0
 
     @staticmethod
-    async def list(
+    async def list_employees(
         db: AsyncSession,
         skip: int = 0,
         limit: int = 100,

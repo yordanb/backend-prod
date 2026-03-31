@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from src.core.database import get_db
@@ -24,7 +24,7 @@ async def list_employees(
     - User: can only see employees they created.
     """
     is_admin = user["role"] == "admin"
-    employees = await EmployeeRepository.list(
+    employees = await EmployeeRepository.list_employees(
         db=db,
         skip=skip,
         limit=limit,
