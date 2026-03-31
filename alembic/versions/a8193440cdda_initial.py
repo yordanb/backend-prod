@@ -53,10 +53,12 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=True),
         sa.Column('action', sa.String(length=100), nullable=False),
+        sa.Column('resource_type', sa.String(length=50), nullable=True),
+        sa.Column('resource_id', sa.String(length=50), nullable=True),
         sa.Column('ip', sa.String(length=50), nullable=True),
         sa.Column('user_agent', sa.String(length=500), nullable=True),
         sa.Column('details', sa.JSON(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
