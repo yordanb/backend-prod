@@ -19,3 +19,6 @@ class User(Base):
 
     # Relationship to Role
     role = relationship("Role", back_populates="users")
+    
+    # Relationship to Employees (manpower)
+    employees = relationship("Employee", back_populates="creator")
