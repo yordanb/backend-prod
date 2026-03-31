@@ -7,20 +7,18 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Add backend/src to path
-sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
+# Add backend root to path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from core.database import engine, Base
-from modules.role.repository import RoleRepository
-from modules.role.schemas import RoleCreate
+from src.core.database import engine, Base
+from src.modules.user.model import User  # Ensure User model is loaded
+from src.modules.role.repository import RoleRepository
+from src.modules.role.schemas import RoleCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 async def seed():
-    # Create tables if not exist (for initial setup)
-    # In production, use Alembic migrations
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+    # Tables are created via Alembic migrations using admin DB user.
+    # This seed only inserts initial data.
     async with engine.connect() as conn:
         async with AsyncSession(bind=conn) as session:
             # Check if roles exist

@@ -2,6 +2,7 @@
 from logging.config import fileConfig
 from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
+import asyncio
 import os
 import sys
 from src.core.config import Settings
@@ -9,15 +10,18 @@ from src.core.config import Settings
 # Add src directory to path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-# Import all models to ensure they're registered with Base.metadata
-from src.modules.user import model as user_model
-from src.modules.auth import model as auth_model
-from src.modules.audit import model as audit_model
-#from src.modules.user.model import Base as UserBase
-#from src.modules.role.model import Base as RoleBase
+# Import Base metadata from core.database (contains all models)
+from src.core.database import Base
+
+# IMPORT ALL MODELS to ensure they are registered with Base.metadata
+# (Alembic autogenerate only detects models that have been imported)
+from src.modules.user.model import User
+from src.modules.role.model import Role
+from src.modules.auth.model import RefreshToken
+from src.modules.audit.model import AuditLog
 
 # All models should be imported here for autogenerate support
-target_metadata = UserBase.metadata
+target_metadata = Base.metadata
 
 config = context.config
 
@@ -60,7 +64,7 @@ async def run_migrations_online():
     connectable = create_async_engine(url)
 
     async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations, connection)
+        await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
 
