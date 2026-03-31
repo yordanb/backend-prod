@@ -6,8 +6,8 @@ from src.core.limiter import limiter, _rate_limit_exceeded_handler
 from src.core.database import get_db
 from .service import AuthService
 from src.deps import require_roles
+from src.modules.user.schemas import LoginRequest, LoginResponse, RefreshRequest
 from typing import Optional
-import json
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -17,30 +17,21 @@ class LogoutRequest(BaseModel):
 class LogoutAllRequest(BaseModel):
     user_id: int
 
-@router.post("/login")
+@router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
 async def login(
     request: Request,
-    data: dict,
+    data: LoginRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Authenticate user with email/password.
     Rate limited: 5 attempts per minute per IP.
     """
-    email = data.get("email")
-    password = data.get("password")
-
-    if not email or not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email and password required"
-        )
-
     result = await AuthService.login(
         db=db,
-        email=email,
-        password=password,
+        email=data.email,
+        password=data.password,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
@@ -58,23 +49,16 @@ async def login(
         "token_type": "bearer"
     }
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=LoginResponse)
 async def refresh(
-    data: dict,
+    data: RefreshRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Exchange valid refresh token for new access token.
     Rotation: old refresh token is revoked and cannot be used again.
     """
-    refresh_token = data.get("refresh_token")
-    if not refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="refresh_token required"
-        )
-
-    access_token = await AuthService.refresh(db, refresh_token)
+    access_token = await AuthService.refresh(db, data.refresh_token)
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
