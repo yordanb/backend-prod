@@ -51,17 +51,24 @@ app.add_middleware(SlowAPIMiddleware)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return await _rate_limit_exceeded_handler(request, exc)
 
-# Include API router
-app.include_router(api_router)
-
 # Root endpoint
 @app.get("/")
 async def root():
     return {
         "message": "MTE Full Stack API",
+        "version": "v1",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "api_base": "/api/v1"
     }
+
+# Unversioned health check (for infrastructure)
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "mte-full-stack"}
+
+# Include versioned API router
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
