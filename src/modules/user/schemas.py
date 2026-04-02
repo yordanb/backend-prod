@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    androidId: Optional[str] = None  # for device pairing
 
 class LoginResponse(BaseModel):
     access_token: str

@@ -13,3 +13,13 @@ class RefreshToken(Base):
     revoked = Column(Boolean, default=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DevicePairing(Base):
+    __tablename__ = "device_pairing"
+
+    id = Column(Integer, primary_key=True)
+    android_id = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)

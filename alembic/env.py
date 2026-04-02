@@ -17,7 +17,7 @@ from src.core.database import Base
 # (Alembic autogenerate only detects models that have been imported)
 from src.modules.user.model import User
 from src.modules.role.model import Role
-from src.modules.auth.model import RefreshToken
+from src.modules.auth.model import RefreshToken, DevicePairing
 from src.modules.audit.model import AuditLog
 from src.modules.manpower.model import Employee
 

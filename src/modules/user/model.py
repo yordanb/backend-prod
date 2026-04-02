@@ -22,3 +22,9 @@ class User(Base):
     
     # Relationship to Employees (manpower)
     employees = relationship("Employee", back_populates="creator")
+
+    # Relationship to RefreshTokens
+    refresh_tokens = relationship("RefreshToken", back_populates="user")
+
+    # Relationship to Devices (device pairing)
+    devices = relationship("DevicePairing", back_populates="user")

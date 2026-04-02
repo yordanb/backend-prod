@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.user.repository import UserRepository
 from src.modules.auth.repository import RefreshTokenRepository
 from src.modules.audit.repository import AuditLogRepository
+from .device_repository import DeviceRepository
 from .schemas import LoginRequest
 from src.core.security import (
     hash_password,
@@ -26,11 +27,13 @@ class AuthService:
         email: str,
         password: str,
         ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
+        user_agent: Optional[str] = None,
+        android_id: Optional[str] = None
     ) -> Optional[Tuple[str, str]]:
         """
         Authenticate user and return access + refresh tokens.
         Returns None if credentials invalid.
+        Optionally registers device pairing if android_id is provided.
         """
         user = await UserRepository.get_by_email(db, email)
         if not user or not user.is_active:
@@ -63,6 +66,33 @@ class AuthService:
             expires_at=expires_at
         )
 
+        # Device pairing: if android_id provided, register/update
+        if android_id:
+            existing_device = await DeviceRepository.get_by_android_id(db, android_id)
+            if existing_device:
+                # If device already paired with this user, just update last_used
+                if existing_device.user_id == user.id:
+                    await DeviceRepository.update_last_used(db, existing_device)
+                else:
+                    # Device paired with another user - log but don't override
+                    await AuditLogRepository.create(
+                        db=db,
+                        user_id=user.id,
+                        action="device.pair_conflict",
+                        ip_address=ip_address,
+                        details=json.dumps({"android_id": android_id, "existing_user": existing_device.user_id})
+                    )
+            else:
+                # New device, create pairing
+                await DeviceRepository.create(db, user.id, android_id)
+                await AuditLogRepository.create(
+                    db=db,
+                    user_id=user.id,
+                    action="device.pair",
+                    ip_address=ip_address,
+                    details=json.dumps({"android_id": android_id})
+                )
+
         # Log successful login
         await AuditLogRepository.create(
             db=db,
@@ -80,10 +110,11 @@ class AuthService:
         db: AsyncSession,
         refresh_token: str,
         ip_address: Optional[str] = None
-    ) -> Optional[str]:
+    ) -> Optional[Tuple[str, str]]:
         """
-        Validate refresh token and issue new access token.
-        Implements rotation: old refresh token is immediately blacklisted.
+        Validate refresh token and issue new access token + new refresh token.
+        Implements rotation: old refresh token is immediately blacklisted and replaced.
+        Returns tuple (access_token, new_refresh_token) or None if invalid.
         """
         try:
             from src.core.security import decode_token
@@ -108,12 +139,25 @@ class AuthService:
         # Blacklist JTI in Redis (additional fast check)
         await redis_client.setex(f"blacklist:{jti}", 3600, "1")
 
-        # Create new access token
+        # Get user
         user = await UserRepository.get_by_id(db, int(user_id))
         if not user or not user.is_active:
             return None
 
-        access_token = create_access_token(user.id, user.role.name)
+        # Create new access token
+        new_access_token = create_access_token(user.id, user.role.name)
+
+        # Create NEW refresh token (rotation)
+        new_refresh_token, new_jti = create_refresh_token(user.id)
+        new_token_hash = hash_password(new_refresh_token)
+        new_expires_at = datetime.utcnow() + timedelta(days=AuthService.REFRESH_TOKEN_EXPIRE_DAYS)
+        await RefreshTokenRepository.create_token(
+            db=db,
+            user_id=user.id,
+            jti=new_jti,
+            token_hash=new_token_hash,
+            expires_at=new_expires_at
+        )
 
         # Log token refresh
         await AuditLogRepository.create(
@@ -121,10 +165,10 @@ class AuthService:
             user_id=user.id,
             action="token.refresh",
             ip_address=ip_address,
-            details=json.dumps({"jti": jti})
+            details=json.dumps({"old_jti": jti, "new_jti": new_jti})
         )
 
-        return access_token
+        return new_access_token, new_refresh_token
 
     @staticmethod
     async def revoke_refresh_token(

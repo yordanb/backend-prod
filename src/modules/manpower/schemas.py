@@ -12,7 +12,7 @@ class EmployeeCreate(BaseModel):
     target_ss: Optional[int] = None
     status: Optional[str] = Field(None, max_length=20)
     jabatan: Optional[str] = Field(None, max_length=100)
-    last_update: Optional[datetime] = None
+    # last_update: Optional[datetime] = None   # ← dihapus
     is_active: Optional[bool] = True
 
 class EmployeeUpdate(BaseModel):
@@ -25,7 +25,7 @@ class EmployeeUpdate(BaseModel):
     target_ss: Optional[int] = None
     status: Optional[str] = Field(None, max_length=20)
     jabatan: Optional[str] = Field(None, max_length=100)
-    last_update: Optional[datetime] = None
+    # last_update: Optional[datetime] = None   # ← dihapus
     is_active: Optional[bool] = None
 
 class EmployeeResponse(BaseModel):
@@ -39,7 +39,7 @@ class EmployeeResponse(BaseModel):
     target_ss: Optional[int]
     status: Optional[str]
     jabatan: Optional[str]
-    last_update: Optional[datetime]
+    # last_update: Optional[datetime]   # ← dihapus
     is_active: bool
     created_by: int
     created_at: datetime

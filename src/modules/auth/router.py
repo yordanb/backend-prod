@@ -5,8 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.limiter import limiter, _rate_limit_exceeded_handler
 from src.core.database import get_db
 from .service import AuthService
+from .device_repository import DeviceRepository
 from src.deps import require_roles
+from src.modules.user.repository import UserRepository
 from src.modules.user.schemas import LoginRequest, LoginResponse, RefreshRequest
+from src.core.security import create_access_token, create_refresh_token, hash_password
+from src.modules.audit.repository import AuditLogRepository
+from datetime import datetime, timedelta
+import json
 from typing import Optional
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -17,6 +23,69 @@ class LogoutRequest(BaseModel):
 class LogoutAllRequest(BaseModel):
     user_id: int
 
+class AndroidIDCheckRequest(BaseModel):
+    androidID: str
+
+@router.post("/id-cek")
+async def check_android_id(
+    data: AndroidIDCheckRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authenticate device using Android ID (device-based auth).
+    If Android ID is registered, returns user's access + refresh tokens.
+    """
+    device = await DeviceRepository.get_by_android_id(db, data.androidID)
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not registered"
+        )
+
+    # Get user
+    user = await UserRepository.get_by_id(db, device.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found or inactive"
+        )
+
+    # Generate new tokens
+    access_token = create_access_token(user.id, user.role.name)
+    refresh_token, jti = create_refresh_token(user.id)
+
+    # Store refresh token
+    token_hash = hash_password(refresh_token)
+    expires_at = datetime.utcnow() + timedelta(days=AuthService.REFRESH_TOKEN_EXPIRE_DAYS)
+    await RefreshTokenRepository.create_token(
+        db=db,
+        user_id=user.id,
+        jti=jti,
+        token_hash=token_hash,
+        expires_at=expires_at
+    )
+
+    # Update device last_used
+    await DeviceRepository.update_last_used(db, device)
+
+    # Audit log
+    await AuditLogRepository.create(
+        db=db,
+        user_id=user.id,
+        action="device.auth",
+        ip_address=None,
+        details=json.dumps({"android_id": data.androidID})
+    )
+
+    return {
+        "status": "already_registered",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "nrp": user.email,  # Assuming email is used as NRP, or change to actual NRP field
+        "role": user.role.name
+    }
+
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
 async def login(
@@ -26,6 +95,7 @@ async def login(
 ):
     """
     Authenticate user with email/password.
+    Optionally accepts androidId for device pairing.
     Rate limited: 5 attempts per minute per IP.
     """
     result = await AuthService.login(
@@ -33,7 +103,8 @@ async def login(
         email=data.email,
         password=data.password,
         ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
+        user_agent=request.headers.get("user-agent"),
+        android_id=data.androidId
     )
 
     if not result:
@@ -55,18 +126,21 @@ async def refresh(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Exchange valid refresh token for new access token.
+    Exchange valid refresh token for new access token and new refresh token.
     Rotation: old refresh token is revoked and cannot be used again.
+    Returns both tokens to maintain persistent login session.
     """
-    access_token = await AuthService.refresh(db, data.refresh_token)
-    if not access_token:
+    result = await AuthService.refresh(db, data.refresh_token)
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token"
         )
 
+    access_token, refresh_token = result
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer"
     }
 

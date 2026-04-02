@@ -15,7 +15,7 @@ class Employee(Base):
     target_ss = Column(Integer, nullable=True)
     status = Column(String(20), nullable=True)
     jabatan = Column(String(100), nullable=True)
-    last_update = Column(DateTime, nullable=True)
+    # last_update = Column(DateTime, nullable=True)   # ← Dihapus, pakai updated_at
     is_active = Column(Boolean, default=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

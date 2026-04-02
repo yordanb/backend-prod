@@ -132,30 +132,22 @@ class EmployeeRepository:
                 target_ss_str = (row.get('TargetSS') or '').strip()
                 status = (row.get('Status') or '').strip() or None
                 jabatan = (row.get('Jabatan') or '').strip() or None
-                last_update_str = (row.get('LastUpdate') or '').strip() or None
-
+                # last_update_str = (row.get('LastUpdate') or '').strip() or None   # ← tidak perlu
+                
                 # Required fields
                 if not nrp or not nama or not section or not posisi:
                     raise ValueError("Missing required fields (NRP, Nama, Section, Posisi)")
-
+                
                 # Duplicate check
                 if await EmployeeRepository.get_by_nrp(db, nrp):
                     raise ValueError(f"NRP {nrp} already exists")
-
+                
                 # Parse target_ss
                 target_ss = int(target_ss_str) if target_ss_str and target_ss_str.isdigit() else None
-
-                # Parse last_update (expected format: YYYY-MM-DD HH:MM:SS)
-                last_update = None
-                if last_update_str:
-                    try:
-                        last_update = datetime.strptime(last_update_str, '%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        pass  # ignore invalid date
-
+                
                 # Determine is_active from status (case-insensitive)
                 is_active = (status.lower() == 'aktif') if status else True
-
+                
                 employee_data = EmployeeCreate(
                     nrp=nrp,
                     nama=nama,
@@ -166,7 +158,7 @@ class EmployeeRepository:
                     target_ss=target_ss,
                     status=status,
                     jabatan=jabatan,
-                    last_update=last_update,
+                    # last_update=... tidak ada lagi
                     is_active=is_active
                 )
                 employees_to_create.append(employee_data)
