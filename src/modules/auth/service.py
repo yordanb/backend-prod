@@ -2,6 +2,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 #from .repository import UserRepository, RefreshTokenRepository, AuditLogRepository
 from src.modules.user.repository import UserRepository
+from src.modules.user.model import User  # ← tambahkan ini
 from src.modules.auth.repository import RefreshTokenRepository
 from src.modules.audit.repository import AuditLogRepository
 from .device_repository import DeviceRepository

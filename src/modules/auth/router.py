@@ -10,6 +10,7 @@ from src.deps import require_roles
 from src.modules.user.repository import UserRepository
 from src.modules.user.schemas import LoginRequest, LoginResponse, RefreshRequest, UserResponse
 from src.core.security import create_access_token, create_refresh_token, hash_password
+from src.modules.auth.repository import RefreshTokenRepository
 from src.modules.audit.repository import AuditLogRepository
 from datetime import datetime, timedelta
 import json

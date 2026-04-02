@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from src.core.database import Base
 
@@ -14,6 +15,8 @@ class RefreshToken(Base):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    user = relationship("User", back_populates="refresh_tokens")
+
 
 class DevicePairing(Base):
     __tablename__ = "device_pairing"
@@ -23,3 +26,5 @@ class DevicePairing(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="devices")
