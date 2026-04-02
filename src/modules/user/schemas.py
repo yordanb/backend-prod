@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     nama: str
     email: str
     role_id: int
+    role: str = Field(alias="role_name")  # role name from User.role_name property
     is_active: bool
     created_at: datetime
 
