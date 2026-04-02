@@ -8,7 +8,7 @@ from .service import AuthService
 from .device_repository import DeviceRepository
 from src.deps import require_roles
 from src.modules.user.repository import UserRepository
-from src.modules.user.schemas import LoginRequest, LoginResponse, RefreshRequest
+from src.modules.user.schemas import LoginRequest, LoginResponse, RefreshRequest, UserResponse
 from src.core.security import create_access_token, create_refresh_token, hash_password
 from src.modules.audit.repository import AuditLogRepository
 from datetime import datetime, timedelta
@@ -77,13 +77,15 @@ async def check_android_id(
         details=json.dumps({"android_id": data.androidID})
     )
 
+    # Serialize user for response (excluding sensitive fields like password)
+    user_response = UserResponse.from_orm(user)
+
     return {
         "status": "already_registered",
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "nrp": user.email,  # Assuming email is used as NRP, or change to actual NRP field
-        "role": user.role.name
+        "user": user_response
     }
 
 @router.post("/login", response_model=LoginResponse)
@@ -94,30 +96,30 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Authenticate user with email/password.
+    Authenticate user with identifier (email or nrp) and password.
     Optionally accepts androidId for device pairing.
     Rate limited: 5 attempts per minute per IP.
     """
     result = await AuthService.login(
         db=db,
-        email=data.email,
+        identifier=data.identifier,
         password=data.password,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         android_id=data.androidId
     )
-
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
 
-    access_token, refresh_token = result
+    access_token, refresh_token, user = result
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user  # automatically serialized via UserResponse
     }
 
 @router.post("/refresh", response_model=LoginResponse)

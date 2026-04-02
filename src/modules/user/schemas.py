@@ -17,6 +17,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    nrp: str  # add nrp field
     nama: str
     email: str
     role_id: int
@@ -28,7 +29,7 @@ class UserResponse(BaseModel):
 
 # Auth schemas
 class LoginRequest(BaseModel):
-    email: EmailStr
+    identifier: str  # email or nrp
     password: str
     androidId: Optional[str] = None  # for device pairing
 
@@ -36,6 +37,7 @@ class LoginResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: Optional[UserResponse] = None  # include user profile
 
 class RefreshRequest(BaseModel):
     refresh_token: str

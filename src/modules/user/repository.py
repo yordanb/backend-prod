@@ -24,6 +24,13 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_by_nrp(db: AsyncSession, nrp: str) -> Optional[User]:
+        result = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.nrp == nrp)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def create(db: AsyncSession, user_data: UserCreate) -> User:
         hashed_pw = hash_password(user_data.password)
         db_user = User(

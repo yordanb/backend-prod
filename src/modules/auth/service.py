@@ -24,18 +24,24 @@ class AuthService:
     @staticmethod
     async def login(
         db: AsyncSession,
-        email: str,
+        identifier: str,  # email or nrp
         password: str,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
         android_id: Optional[str] = None
-    ) -> Optional[Tuple[str, str]]:
+    ) -> Optional[Tuple[str, str, User]]:
         """
-        Authenticate user and return access + refresh tokens.
+        Authenticate user and return access + refresh tokens + user object.
+        Supports login via email or nrp.
         Returns None if credentials invalid.
         Optionally registers device pairing if android_id is provided.
         """
-        user = await UserRepository.get_by_email(db, email)
+        # Determine lookup by email or nrp
+        if '@' in identifier:
+            user = await UserRepository.get_by_email(db, identifier)
+        else:
+            user = await UserRepository.get_by_nrp(db, identifier)
+
         if not user or not user.is_active:
             return None
 
@@ -47,7 +53,7 @@ class AuthService:
                 action="login.failed",
                 ip_address=ip_address,
                 user_agent=user_agent,
-                details=json.dumps({"email": email})
+                details=json.dumps({"identifier": identifier})
             )
             return None
 
@@ -100,10 +106,10 @@ class AuthService:
             action="login.success",
             ip_address=ip_address,
             user_agent=user_agent,
-            details=json.dumps({"email": email})
+            details=json.dumps({"identifier": identifier})
         )
 
-        return access_token, refresh_token
+        return access_token, refresh_token, user
 
     @staticmethod
     async def refresh(
