@@ -4,6 +4,7 @@ from src.modules.auth.router import router as auth_router
 from src.modules.user.router import router as user_router
 from src.modules.role.router import router as role_router
 from src.modules.manpower.router import router as manpower_router
+from src.modules.admin.router import router as admin_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -12,6 +13,7 @@ api_router.include_router(auth_router)
 api_router.include_router(user_router)
 api_router.include_router(role_router)
 api_router.include_router(manpower_router)
+api_router.include_router(admin_router)
 
 # Health check endpoint (versioned)
 @api_router.get("/health")
