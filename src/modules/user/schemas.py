@@ -17,11 +17,11 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    nrp: str  # add nrp field
+    nrp: str
     nama: str
     email: str
     role_id: int
-    role: str = Field(alias="role_name")  # role name from User.role_name property
+    role_name: Optional[str] = None
     is_active: bool
     created_at: datetime
 

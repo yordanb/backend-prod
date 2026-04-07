@@ -49,11 +49,12 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://192.168.10.18:5173",
-        "http://192.168.10.6:5173",  # tambahkan IP laptop ini juga
+        "http://192.168.10.18",  # nginx frontend (no port)
+        "http://192.168.10.18:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Add rate limiting middleware

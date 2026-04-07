@@ -1,5 +1,5 @@
 # Docker Compose for production-ready stack
-version: '3.8'
+#version: '3.8'
 
 services:
   # MySQL Database

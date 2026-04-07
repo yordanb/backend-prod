@@ -29,6 +29,8 @@ async def list_users(
     search: Optional[str] = Query(None)
 ):
     """List users with pagination and optional search by nrp/email."""
+    from sqlalchemy import select, or_
+    from sqlalchemy.orm import selectinload
     offset = (page - 1) * limit
     
     # Build base query with eager load of role
@@ -231,8 +233,11 @@ async def list_devices(
     db: AsyncSession = Depends(get_db)
 ):
     """List all device pairings."""
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(DevicePairing).options(selectinload(DevicePairing.user)).order_by(DevicePairing.created_at.desc())
+        select(DevicePairing).options(
+            selectinload(DevicePairing.user).selectinload(User.role)
+        ).order_by(DevicePairing.created_at.desc())
     )
     devices = result.scalars().all()
     
@@ -247,6 +252,7 @@ async def list_devices(
                     "nrp": d.user.nrp,
                     "nama": d.user.nama,
                     "email": d.user.email,
+                    "role_name": d.user.role.name if d.user and d.user.role else None,
                 } if d.user else None,
                 "created_at": d.created_at.isoformat() if d.created_at else None,
                 "last_used_at": d.last_used_at.isoformat() if d.last_used_at else None,
@@ -296,7 +302,10 @@ async def list_audit_logs(
 ):
     """List audit logs with filters."""
     from sqlalchemy import select, and_
-    query = select(AuditLog).order_by(AuditLog.created_at.desc())
+    from sqlalchemy.orm import selectinload
+    query = select(AuditLog).options(
+        selectinload(AuditLog.user).selectinload(User.role)
+    ).order_by(AuditLog.created_at.desc())
     
     conditions = []
     if action:
@@ -322,7 +331,7 @@ async def list_audit_logs(
     total_result = await db.execute(count_query)
     total = len(total_result.scalars().all())
     
-    # Load users for these logs (optional)
+    # Load users for these logs (optional) - already eager loaded
     # We'll return user_id and maybe some basic info
     
     return {
@@ -330,6 +339,12 @@ async def list_audit_logs(
             {
                 "id": log.id,
                 "user_id": log.user_id,
+                "user": {
+                    "id": log.user.id,
+                    "nrp": log.user.nrp,
+                    "nama": log.user.nama,
+                    "role_name": log.user.role.name if log.user and log.user.role else None,
+                } if log.user else None,
                 "action": log.action,
                 "ip_address": log.ip_address,
                 "details": log.details,
