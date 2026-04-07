@@ -10,6 +10,7 @@ from src.core.redis import init_redis, close_redis
 from src.api.main_router import api_router
 from src.core.config import settings
 from src.core import models  # ⬅️ penting (trigger registration sekali)
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,6 +41,19 @@ app = FastAPI(
     description="Production-ready IoT backend with FastAPI, MySQL, Redis",
     version="1.0.0",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://192.168.10.18:5173",
+        "http://192.168.10.6:5173",  # tambahkan IP laptop ini juga
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Add rate limiting middleware
