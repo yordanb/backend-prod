@@ -30,6 +30,9 @@ class User(Base):
     # Relationship to Devices (device pairing)
     devices = relationship("DevicePairing", back_populates="user")
 
+    # Relationship to AuditLogs
+    audit_logs = relationship("AuditLog", back_populates="user")
+
     @property
     def role_name(self) -> str:
         """Return role name for serialization."""

@@ -6,6 +6,7 @@ from src.core.limiter import limiter
 from src.core.database import get_db
 from src.modules.user.model import User
 from src.modules.auth.model import DevicePairing
+from src.modules.audit.model import AuditLog
 from src.modules.audit.repository import AuditLogRepository
 from src.modules.role.repository import RoleRepository
 from src.deps import require_roles
@@ -16,6 +17,7 @@ from src.core.security import hash_password
 import secrets
 import json
 from typing import Optional, List
+from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_roles(["admin"]))])
 
@@ -346,7 +348,7 @@ async def list_audit_logs(
                     "role_name": log.user.role.name if log.user and log.user.role else None,
                 } if log.user else None,
                 "action": log.action,
-                "ip_address": log.ip_address,
+                "ip_address": log.ip,
                 "details": log.details,
                 "created_at": log.created_at.isoformat() if log.created_at else None,
             }

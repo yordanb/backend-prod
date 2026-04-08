@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, func
 from datetime import datetime
+from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 class AuditLog(Base):
@@ -14,3 +15,6 @@ class AuditLog(Base):
     user_agent = Column(String(500), nullable=True)
     details = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship
+    user = relationship("User", back_populates="audit_logs")
